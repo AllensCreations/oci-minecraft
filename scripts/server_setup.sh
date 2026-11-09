@@ -29,11 +29,38 @@ if command -v apt-get >/dev/null; then
   APT="apt-get -o DPkg::Lock::Timeout=300 -y -q"
   $APT update
   $APT install curl unzip jq gnupg ca-certificates iptables-persistent
-  if [ $IS_JAVA = 1 ]; then $APT install openjdk-21-jre-headless; else $APT install libcurl4 openssl; fi
+  if [ $IS_JAVA = 0 ]; then $APT install libcurl4 openssl; fi
 else
   dnf install -y curl unzip jq
-  if [ $IS_JAVA = 1 ]; then dnf install -y java-21-openjdk-headless; else dnf install -y libcurl openssl; fi
+  if [ $IS_JAVA = 0 ]; then dnf install -y libcurl openssl; fi
 fi
+
+
+JAVA_BIN=""
+jmajor(){ "$1" -version 2>&1 | awk -F'[".]' '/version/ {print $2; exit}'; }
+install_java(){
+  local want="$1" cand cur A
+  for cand in $(ls /usr/lib/jvm/*/bin/java /opt/java*/bin/java 2>/dev/null) "$(command -v java || true)"; do
+    [ -x "$cand" ] || continue
+    cur=$(jmajor "$cand" 2>/dev/null || true)
+    if [ -n "$cur" ] && [ "$cur" -ge "$want" ] 2>/dev/null; then JAVA_BIN="$cand"; return 0; fi
+  done
+  log "Installing Java $want"
+  if command -v apt-get >/dev/null; then $APT install "openjdk-${want}-jre-headless" || true
+  else dnf install -y "java-${want}-openjdk-headless" || true; fi
+  for cand in $(ls /usr/lib/jvm/*/bin/java 2>/dev/null); do
+    cur=$(jmajor "$cand" 2>/dev/null || true)
+    if [ -n "$cur" ] && [ "$cur" -ge "$want" ] 2>/dev/null; then JAVA_BIN="$cand"; return 0; fi
+  done
+  log "Package not available - downloading Eclipse Temurin $want"
+  case "$ARCH" in aarch64) A=aarch64 ;; x86_64) A=x64 ;; *) echo "Unsupported CPU $ARCH"; exit 1 ;; esac
+  mkdir -p "/opt/java$want"
+  curl -fsSL "https://api.adoptium.net/v3/binary/latest/${want}/ga/linux/${A}/jre/hotspot/normal/eclipse" -o /tmp/jre.tgz
+  tar xzf /tmp/jre.tgz -C "/opt/java$want" --strip-components=1
+  rm -f /tmp/jre.tgz
+  JAVA_BIN="/opt/java$want/bin/java"
+  [ -x "$JAVA_BIN" ] || { echo "Java $want install failed"; exit 1; }
+}
 
 id minecraft >/dev/null 2>&1 || useradd -r -m -d "$MC" -s /usr/sbin/nologin minecraft
 mkdir -p "$MC"
@@ -87,6 +114,8 @@ else
     [ -z "$V" ] && V=$(curl -fsSL https://api.papermc.io/v2/projects/paper | jq -r '.versions[-1] // empty' 2>/dev/null || true)
   fi
   [ -n "$V" ] || { echo "Could not determine Paper version. Set PAPER_VERSION in minecraft/settings.env"; exit 1; }
+  case "$V" in 1.*) JMAJOR=21 ;; *) JMAJOR=25 ;; esac   # Minecraft 26.x needs Java 25; 1.21.x needs 21
+  install_java "$JMAJOR"
   URL=$(curl -fsSL "https://fill.papermc.io/v3/projects/paper/versions/$V/builds/latest" | jq -r '.downloads["server:default"].url // empty' 2>/dev/null || true)
   if [ -z "$URL" ]; then
     B=$(curl -fsSL "https://api.papermc.io/v2/projects/paper/versions/$V/builds" | jq -r '.builds[-1].build // empty' 2>/dev/null || true)
@@ -186,7 +215,7 @@ if [ $IS_JAVA = 1 ]; then
     TOTAL=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
     JAVA_RAM_MB=$(( TOTAL * 60 / 100 ))
   fi
-  EXEC="$(command -v java) -Xms${JAVA_RAM_MB}M -Xmx${JAVA_RAM_MB}M -jar $MC/paper.jar --nogui"
+  EXEC="$JAVA_BIN -Xms${JAVA_RAM_MB}M -Xmx${JAVA_RAM_MB}M -jar $MC/paper.jar --nogui"
   ENVLINE="Environment=LANG=C.UTF-8"
   BACKUP_PATHS="${LEVEL}*"
 else

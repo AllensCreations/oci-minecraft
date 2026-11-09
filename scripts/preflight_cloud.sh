@@ -56,6 +56,9 @@ if [ -n "$V" ]; then
 else
   bad "Could not read Paper's version list"
 fi
+curl -fsSIL "https://api.adoptium.net/v3/binary/latest/25/ga/linux/aarch64/jre/hotspot/normal/eclipse" >/dev/null 2>&1 \
+  && ok "Java 25 (ARM) fallback download works" || warn "Java 25 fallback download failed"
+echo "PREFLIGHT [info] Minecraft 26.x needs Java 25; the installer picks it automatically"
 for p in geyser floodgate; do
   curl -fsSIL "https://download.geysermc.org/v2/projects/$p/versions/latest/builds/latest/downloads/spigot" >/dev/null 2>&1 \
     && ok "$p download works" || bad "$p download link failed"
