@@ -1,5 +1,6 @@
 name: Retry OCI stack apply
 
+# Triggered from cron-job.org (workflow_dispatch). No GitHub schedule.
 on:
   workflow_dispatch:
 
@@ -15,6 +16,8 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: "True"
     steps:
       - uses: actions/checkout@v4
 
@@ -43,11 +46,25 @@ jobs:
           STACK_ID: ${{ secrets.OCI_STACK_ID }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           REQUIRE_VM: "1"
+          SKIP_IF_INSTALLED: "1"
         run: bash scripts/deploy_all.sh
 
       - name: Publish server address for the status page
         if: always() && steps.deploy.outputs.ip != ''
+        continue-on-error: true
         run: bash scripts/publish_address.sh "${{ steps.deploy.outputs.ip }}"
+
+      - name: Notify - server ready
+        if: always() && steps.deploy.outcome == 'success' && steps.deploy.outputs.ip != ''
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: bash scripts/notify.sh "Minecraft server ready" "Address: ${{ steps.deploy.outputs.ip }}"
+
+      - name: Notify - problem
+        if: failure() && steps.apply.outputs.result == 'SUCCEEDED'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: bash scripts/notify.sh "Minecraft install failed" "The VM exists but setup failed. Check GitHub Actions."
 
       - name: Disable retry workflow
         if: steps.apply.outputs.result == 'SUCCEEDED'

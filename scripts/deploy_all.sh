@@ -46,6 +46,9 @@ done
 [ -n "$USER_FOUND" ] || { echo "SSH not reachable (check SSH key / port 22)."; exit 1; }
 echo "SSH user: $USER_FOUND"
 
+if [ "${SKIP_IF_INSTALLED:-0}" = "1" ] && ssh $SSHO "$USER_FOUND@$IP" "systemctl is-active -q minecraft"; then
+  echo "Server already running - skipping reinstall."; exit 0
+fi
 tar czf - minecraft scripts/server_setup.sh | ssh $SSHO "$USER_FOUND@$IP" 'rm -rf "$HOME/deploy" && mkdir -p "$HOME/deploy" && tar xzf - -C "$HOME/deploy"'
 ssh $SSHO "$USER_FOUND@$IP" 'sudo bash "$HOME/deploy/scripts/server_setup.sh"'
 echo "Server address: $IP   (Bedrock UDP $UDP_PORT / Java TCP $TCP_PORT, depending on edition: $EDITION)"
