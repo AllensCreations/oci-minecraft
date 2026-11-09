@@ -12,8 +12,8 @@ case "$EDITION" in
 esac
 
 oci resource-manager stack get-stack-tf-state --stack-id "$STACK_ID" --file state.json >/dev/null 2>&1 || echo '{}' > state.json
-INSTANCE_ID=$(jq -r '[.resources[]? | select(.type=="oci_core_instance") | .instances[]?.attributes.id][0] // empty' state.json)
-IP=$(jq -r '[.resources[]? | select(.type=="oci_core_instance") | .instances[]?.attributes.public_ip | select(. != null and . != "")][0] // empty' state.json)
+INSTANCE_ID=$(jq -r '[.resources[]? | select(.type=="oci_core_instance") | .instances[]?.attributes.id][0] // empty' state.json 2>/dev/null || true)
+IP=$(jq -r '[.resources[]? | select(.type=="oci_core_instance") | .instances[]?.attributes.public_ip | select(. != null and . != "")][0] // empty' state.json 2>/dev/null || true)
 if [ -z "$IP" ] && [ -n "$INSTANCE_ID" ]; then
   IP=$(oci compute instance list-vnics --instance-id "$INSTANCE_ID" --query 'data[0]."public-ip"' --raw-output 2>/dev/null || true)
 fi

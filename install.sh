@@ -141,7 +141,7 @@ git clone --depth 1 "https://github.com/$UPSTREAM.git" "$DIR"
 cd "$DIR"
 rm -rf .git
 
-setp(){ grep -v "^$2=" "$1" > .tmp && printf '%s=%s\n' "$2" "$3" >> .tmp && mv .tmp "$1"; }
+setp(){ { grep -v "^$2=" "$1" || true; printf '%s=%s\n' "$2" "$3"; } > .tmp && mv .tmp "$1"; }
 sete(){ sed -i "s|^$1=.*|$1=$2|" minecraft/settings.env; }
 sete EDITION "$EDITION"; sete EULA "$EULA"; sete KEEPALIVE "$S_KEEP"
 if [ "$EDITION" = "bedrock" ]; then
