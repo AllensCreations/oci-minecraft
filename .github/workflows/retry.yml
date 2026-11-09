@@ -58,12 +58,14 @@ jobs:
         if: always() && steps.deploy.outcome == 'success' && steps.deploy.outputs.ip != ''
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATUS_URL: ${{ vars.STATUS_URL }}
         run: bash scripts/notify.sh "Minecraft server ready" "Address: ${{ steps.deploy.outputs.ip }}"
 
       - name: Notify - problem
         if: failure() && steps.apply.outputs.result == 'SUCCEEDED'
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATUS_URL: ${{ vars.STATUS_URL }}
         run: bash scripts/notify.sh "Minecraft install failed" "The VM exists but setup failed. Check GitHub Actions."
 
       - name: Disable retry workflow

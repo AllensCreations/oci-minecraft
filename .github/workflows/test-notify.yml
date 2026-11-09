@@ -9,4 +9,5 @@ jobs:
       - name: Send sample notification
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          STATUS_URL: ${{ vars.STATUS_URL }}
         run: bash scripts/notify.sh "Test from GitHub" "Notifications work."
