@@ -35,7 +35,7 @@ for i in $(seq 1 60); do
 done
 if [ "$STATE" != "SUCCEEDED" ]; then
   echo "--- why it failed ---"
-  oci resource-manager job get-job-logs --job-id "$JOB" --all --query 'data[-6:].message' 2>/dev/null | tail -n 12
+  oci resource-manager job get-job-logs --job-id "$JOB" --all --query 'data[].message' 2>/dev/null | grep -iE 'error|capacity|limit|quota' | head -n 8
 fi
 echo "result=$STATE" >> "$GITHUB_OUTPUT"
 exit 0
