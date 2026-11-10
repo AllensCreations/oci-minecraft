@@ -58,7 +58,7 @@ jobs:
         if: always() && steps.deploy.outcome == 'success' && steps.deploy.outputs.ip != ''
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: bash scripts/notify.sh "Minecraft server ready" "Address: ${{ steps.deploy.outputs.ip }}"
+        run: bash scripts/notify.sh "Minecraft server ready" "Server address - ${{ steps.deploy.outputs.ip }}"
 
       - name: Notify - problem
         if: failure() && steps.apply.outputs.result == 'SUCCEEDED'
